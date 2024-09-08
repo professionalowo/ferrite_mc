@@ -1,12 +1,12 @@
 use std::io::{Cursor, Read};
 
 use super::{
-    types::{VarInt, VarLong},
+    types::{MString, VarInt, VarLong, UUID},
     Package,
 };
 
-const SEGMENT_BITS: u8 = 0x7F;
-const CONTINUE_BIT: u8 = 0x80;
+pub const SEGMENT_BITS: u8 = 0x7F;
+pub const CONTINUE_BIT: u8 = 0x80;
 #[derive(Debug)]
 pub struct ProtocolReader<R: Read>(pub R);
 
@@ -21,7 +21,8 @@ pub trait ReadProtocol {
     fn try_read_var_int(&mut self) -> std::io::Result<VarInt>;
     fn try_read_var_long(&mut self) -> std::io::Result<VarLong>;
     fn try_read_ushort(&mut self) -> std::io::Result<u16>;
-    fn try_read_string(&mut self) -> std::io::Result<String>;
+    fn try_read_string(&mut self) -> std::io::Result<MString>;
+    fn try_read_uuid(&mut self) -> std::io::Result<UUID>;
 }
 
 impl<R: Read> ReadProtocol for ProtocolReader<R> {
@@ -109,7 +110,7 @@ impl<R: Read> ReadProtocol for ProtocolReader<R> {
         Ok(u16::from_be_bytes(buf))
     }
 
-    fn try_read_string(&mut self) -> std::io::Result<String> {
+    fn try_read_string(&mut self) -> std::io::Result<MString> {
         let size = self.try_read_var_int()?;
 
         let bytes_to_read = match size.value.try_into() {
@@ -124,6 +125,13 @@ impl<R: Read> ReadProtocol for ProtocolReader<R> {
             Err(error) => return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, error)),
         };
 
-        Ok(value)
+        Ok(MString { size, value })
+    }
+
+    fn try_read_uuid(&mut self) -> std::io::Result<UUID> {
+        let mut buf: [u8; 16] = [0; 16];
+        self.read_exact(&mut buf)?;
+
+        Ok(UUID(u128::from_le_bytes(buf)))
     }
 }

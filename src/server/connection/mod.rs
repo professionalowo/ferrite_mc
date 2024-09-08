@@ -1,5 +1,8 @@
-use connection_state::ConnectionState;
-use protocol::reader::{ProtocolReader, ReadProtocol};
+use connection_state::{test_response, ConnectionState};
+use protocol::{
+    reader::{ProtocolReader, ReadProtocol},
+    types::{serialize::Serialize, MString, VarInt},
+};
 use std::{
     io::{Read, Write},
     net::TcpStream,
@@ -10,7 +13,7 @@ mod protocol;
 
 #[derive(Debug)]
 pub struct Connection {
-    inner: ProtocolReader<TcpStream>,
+    pub inner: ProtocolReader<TcpStream>,
     state: ConnectionState,
 }
 
@@ -27,9 +30,10 @@ impl Connection {
     }
 
     pub fn try_handshake(&mut self) -> std::io::Result<()> {
+        self.state = ConnectionState::Handshaking;
         let mut package = self.inner.try_read_package()?;
         let protocol_version = package.try_read_var_int()?.value;
-        let server_address = package.try_read_string()?;
+        let server_address = package.try_read_string()?.value;
         let server_port = package.try_read_ushort()?;
         let next_state = package.try_read_var_int()?.value;
 
@@ -38,7 +42,40 @@ impl Connection {
         println!("server_port: {:?}", server_port);
         println!("next_state: {:?}", next_state);
 
-        self.state = ConnectionState::Handshaking;
+        let status_response = serde_json::to_string(&test_response())?;
+
+        self.inner.0.write(
+            &MString {
+                size: VarInt {
+                    length: 1,
+                    value: 1,
+                },
+                value: status_response,
+            }
+            .serialize()?,
+        )?;
+
+        Ok(())
+    }
+    pub fn try_login(&mut self) -> std::io::Result<()> {
+        self.state = ConnectionState::Login;
+        let mut package = self.inner.try_read_package()?;
+        let name = package.try_read_string()?.value;
+        let uuid = package.try_read_uuid()?;
+        println!("name: {:?}", name);
+        println!("uuid: {:?}", uuid);
+        Ok(())
+    }
+
+    pub fn try_set_encryption(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+
+    pub fn try_set_compression(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+
+    pub fn try_finish_login(&mut self) -> std::io::Result<()> {
         Ok(())
     }
 }

@@ -1,5 +1,4 @@
 use std::{
-    io::{BufRead, BufReader},
     net::{TcpListener, TcpStream, ToSocketAddrs},
     thread::{self, JoinHandle},
     time::Duration,
@@ -40,18 +39,12 @@ impl<A: ToSocketAddrs + std::marker::Send + 'static> Server<A> {
     fn handle_client(stream: TcpStream) -> std::io::Result<()> {
         println!("Accepting connection from {}", stream.local_addr()?);
         let mut s = Connection::new(Self::configure_stream(&stream)?);
-
         s.try_handshake()?;
+        s.try_login()?;
+        s.try_set_encryption()?;
+        s.try_set_compression()?;
+        s.try_finish_login()?;
 
-        let mut reader = BufReader::new(s);
-        let mut buf: Vec<u8> = Vec::with_capacity(250);
-        while let Ok(n) = reader.read_until(20, &mut buf) {
-            //is only reached after stream closes
-            if n == 0 {
-                break;
-            }
-        }
-        println!("{:?}", buf);
         Ok(())
     }
 

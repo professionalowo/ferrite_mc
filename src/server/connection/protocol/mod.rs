@@ -4,7 +4,7 @@ use types::VarInt;
 
 use super::Connection;
 pub mod reader;
-mod types;
+pub mod types;
 
 pub struct ProtocolError(String);
 
