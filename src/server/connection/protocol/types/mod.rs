@@ -1,15 +1,11 @@
-#[derive(Debug, Clone)]
-pub struct VarInt {
-    pub value: i32,
-    pub length: u8,
-}
 pub mod serialize;
 
 #[derive(Debug, Clone)]
-pub struct VarLong {
-    pub value: i64,
-    pub length: u8,
-}
+pub struct VarInt(pub i32);
+
+#[derive(Debug, Clone)]
+pub struct VarLong(pub i64);
+
 #[derive(Debug, Clone)]
 pub struct UUID(pub u128);
 

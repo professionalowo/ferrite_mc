@@ -8,12 +8,12 @@ pub trait Serialize {
 
 impl Serialize for VarInt {
     fn serialize(&self) -> std::io::Result<Vec<u8>> {
-        let mut value = self.value;
+        let mut value = self.0;
         let mut buf: Vec<u8> = Vec::new();
 
         loop {
             if value & !(SEGMENT_BITS) as i32 == 0 {
-                buf.push(self.value as u8);
+                buf.push(self.0 as u8);
                 return Ok(buf);
             }
             let byte: u8 = match ((value & SEGMENT_BITS as i32) | CONTINUE_BIT as i32).try_into() {
@@ -30,7 +30,7 @@ impl Serialize for VarInt {
 
 impl Serialize for MString {
     fn serialize(&self) -> std::io::Result<Vec<u8>> {
-        let size: usize = match self.size.value.try_into() {
+        let size: usize = match self.size.0.try_into() {
             Ok(u) => u,
             Err(error) => return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, error)),
         };

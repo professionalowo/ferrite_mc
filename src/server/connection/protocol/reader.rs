@@ -27,15 +27,15 @@ pub trait ReadProtocol {
 
 impl<R: Read> ReadProtocol for ProtocolReader<R> {
     fn try_read_package(&mut self) -> std::io::Result<ProtocolReader<Package>> {
-        let length = self.try_read_var_int()?.value;
-        let packet_id = self.try_read_var_int()?.value;
+        let length = self.try_read_var_int()?.0;
+        let packet_id = self.try_read_var_int()?.0;
 
         let bytes_to_read: usize = match (length - packet_id).try_into() {
             Ok(u) => u,
             Err(e) => return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, e)),
         };
 
-        let mut buf: Vec<u8> = vec![0; bytes_to_read + 1];
+        let mut buf: Vec<u8> = vec![0; bytes_to_read - 1];
         self.read_exact(&mut buf)?;
 
         Ok(ProtocolReader(Package {
@@ -68,10 +68,7 @@ impl<R: Read> ReadProtocol for ProtocolReader<R> {
             }
         }
 
-        Ok(VarInt {
-            value,
-            length: (position / 7),
-        })
+        Ok(VarInt(value))
     }
 
     fn try_read_var_long(&mut self) -> std::io::Result<VarLong> {
@@ -97,10 +94,7 @@ impl<R: Read> ReadProtocol for ProtocolReader<R> {
             }
         }
 
-        Ok(VarLong {
-            value,
-            length: (position / 7),
-        })
+        Ok(VarLong(value))
     }
 
     fn try_read_ushort(&mut self) -> std::io::Result<u16> {
@@ -113,7 +107,7 @@ impl<R: Read> ReadProtocol for ProtocolReader<R> {
     fn try_read_string(&mut self) -> std::io::Result<MString> {
         let size = self.try_read_var_int()?;
 
-        let bytes_to_read = match size.value.try_into() {
+        let bytes_to_read = match size.0.try_into() {
             Ok(u) => u,
             Err(error) => return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, error)),
         };
@@ -132,6 +126,6 @@ impl<R: Read> ReadProtocol for ProtocolReader<R> {
         let mut buf: [u8; 16] = [0; 16];
         self.read_exact(&mut buf)?;
 
-        Ok(UUID(u128::from_le_bytes(buf)))
+        Ok(UUID(u128::from_be_bytes(buf)))
     }
 }

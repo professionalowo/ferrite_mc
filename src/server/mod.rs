@@ -1,10 +1,11 @@
 use std::{
+    io::Read,
     net::{TcpListener, TcpStream, ToSocketAddrs},
     thread::{self, JoinHandle},
     time::Duration,
 };
 
-use connection::Connection;
+use connection::{connection_state::ConnectionState, Connection};
 mod connection;
 
 pub struct Server<A>
@@ -40,6 +41,13 @@ impl<A: ToSocketAddrs + std::marker::Send + 'static> Server<A> {
         println!("Accepting connection from {}", stream.local_addr()?);
         let mut s = Connection::new(Self::configure_stream(&stream)?);
         s.try_handshake()?;
+
+        if s.get_state() == ConnectionState::Status && s.try_recieve_status_request()? {
+            s.try_send_status()?;
+            //s.try_recieve_ping()?;
+            return Ok(());
+        }
+
         s.try_login()?;
         s.try_set_encryption()?;
         s.try_set_compression()?;
