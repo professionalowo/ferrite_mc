@@ -140,7 +140,7 @@ mod tests {
         let cursor = Cursor::new(bytes);
         let mut reader = ProtocolReader(cursor);
         let mut p = reader.try_read_package().unwrap();
-        let string = p.try_read_string().unwrap();
-        assert_eq!(string.value, value)
+        let string = p.try_read_string().unwrap().value;
+        assert_eq!(string, value)
     }
 }
