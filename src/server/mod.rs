@@ -5,6 +5,9 @@ use std::{
     time::Duration,
 };
 
+use connection::Connection;
+mod connection;
+
 pub struct Server<A>
 where
     A: ToSocketAddrs,
@@ -14,7 +17,7 @@ where
 }
 
 impl<A: ToSocketAddrs + std::marker::Send + 'static> Server<A> {
-    pub fn new(address: A) -> Self {
+    pub const fn new(address: A) -> Self {
         Self {
             stream_handles: Vec::new(),
             address,
@@ -24,7 +27,7 @@ impl<A: ToSocketAddrs + std::marker::Send + 'static> Server<A> {
     pub fn run(mut self) -> std::io::Result<()> {
         let listener = TcpListener::bind(self.address)?;
         for stream in listener.incoming().flatten() {
-            let handle = thread::spawn(|| Self::handle_client(stream));
+            let handle = thread::spawn(move || Self::handle_client(stream));
             self.stream_handles.push(handle);
         }
 
@@ -35,9 +38,10 @@ impl<A: ToSocketAddrs + std::marker::Send + 'static> Server<A> {
     }
 
     fn handle_client(stream: TcpStream) -> std::io::Result<()> {
-        println!("Accepting connection from {}", &stream.local_addr()?.ip());
-        let s = Self::configure_stream(&stream)?;
-        drop(stream);
+        println!("Accepting connection from {}", stream.local_addr()?);
+        let mut s = Connection::new(Self::configure_stream(&stream)?);
+
+        s.try_handshake()?;
 
         let mut reader = BufReader::new(s);
         let mut buf: Vec<u8> = Vec::with_capacity(250);
@@ -52,7 +56,7 @@ impl<A: ToSocketAddrs + std::marker::Send + 'static> Server<A> {
     }
 
     fn configure_stream(stream: &TcpStream) -> std::io::Result<TcpStream> {
-        let read_timeout_duration = Duration::from_secs(5);
+        let read_timeout_duration = Duration::from_secs(30);
         let write_timeout_duration = Duration::from_secs(1);
 
         let s = stream.try_clone()?;
