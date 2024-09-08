@@ -116,3 +116,31 @@ impl Write for Connection {
         self.inner.0.flush()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::io::Cursor;
+
+    use crate::server::connection::protocol::reader::{ProtocolReader, ReadProtocol};
+
+    use super::protocol::{
+        types::{serialize::Serialize, MString, VarInt},
+        Package,
+    };
+
+    #[test]
+    fn serialization_roundtrip() {
+        let value = "Hallo Welt";
+        let mstring = MString {
+            value: value.into(),
+            size: VarInt(value.len().try_into().unwrap()),
+        };
+        let package = Package::try_new(0, mstring.serialize().unwrap()).unwrap();
+        let bytes = package.serialize().unwrap();
+        let cursor = Cursor::new(bytes);
+        let mut reader = ProtocolReader(cursor);
+        let mut p = reader.try_read_package().unwrap();
+        let string = p.try_read_string().unwrap();
+        assert_eq!(string.value, value)
+    }
+}
