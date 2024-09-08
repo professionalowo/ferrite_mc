@@ -42,9 +42,11 @@ impl<A: ToSocketAddrs + std::marker::Send + 'static> Server<A> {
         let mut s = Connection::new(Self::configure_stream(&stream)?);
         s.try_handshake()?;
 
-        if s.get_state() == ConnectionState::Status && s.try_recieve_status_request()? {
-            s.try_send_status()?;
-            //s.try_recieve_ping()?;
+        if s.get_state() == ConnectionState::Status {
+            if s.try_recieve_status_request()? {
+                s.try_send_status()?;
+                s.try_recieve_ping()?;
+            }
             return Ok(());
         }
 

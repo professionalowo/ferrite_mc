@@ -46,11 +46,14 @@ impl Connection {
             size: VarInt(status_string.len().try_into().unwrap()),
             value: status_string,
         };
-        self.write_package(Package::try_new(0x00, m_string.serialize()?)?)
+        let out_bytes = m_string.serialize()?;
+        let out_package = Package::try_new(0x00, out_bytes)?;
+        self.write_package(out_package)
     }
 
     pub fn try_recieve_ping(&mut self) -> std::io::Result<()> {
-        let pack = self.inner.try_read_package()?;
+        let mut pack = self.inner.try_read_package()?;
+        let long = pack.try_read_long()?;
         println!("{:?}", pack);
         Ok(())
     }

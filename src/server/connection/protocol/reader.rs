@@ -23,6 +23,7 @@ pub trait ReadProtocol {
     fn try_read_ushort(&mut self) -> std::io::Result<u16>;
     fn try_read_string(&mut self) -> std::io::Result<MString>;
     fn try_read_uuid(&mut self) -> std::io::Result<UUID>;
+    fn try_read_long(&mut self) -> std::io::Result<i64>;
 }
 
 impl<R: Read> ReadProtocol for ProtocolReader<R> {
@@ -127,5 +128,12 @@ impl<R: Read> ReadProtocol for ProtocolReader<R> {
         self.read_exact(&mut buf)?;
 
         Ok(UUID(u128::from_be_bytes(buf)))
+    }
+
+    fn try_read_long(&mut self) -> std::io::Result<i64> {
+        let mut buf: [u8; 8] = [0; 8];
+        self.read_exact(&mut buf)?;
+
+        Ok(i64::from_be_bytes(buf))
     }
 }
