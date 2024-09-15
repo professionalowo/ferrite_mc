@@ -29,17 +29,19 @@ pub trait ReadProtocol {
 impl<R: Read> ReadProtocol for ProtocolReader<R> {
     fn try_read_package(&mut self) -> std::io::Result<ProtocolReader<Package>> {
         let length = self.try_read_var_int()?.0;
-        let packet_id = self.try_read_var_int()?.0;
+        let packet_id = self.try_read_var_int()?;
 
-        let bytes_to_read: usize = match (length - packet_id).try_into() {
+        let id_length = packet_id.length() as i32;
+
+        let bytes_to_read: usize = match (length - id_length).try_into() {
             Ok(u) => u,
             Err(e) => return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, e)),
         };
 
-        let mut buf: Vec<u8> = vec![0; bytes_to_read - 1];
+        let mut buf: Vec<u8> = vec![0; bytes_to_read];
         self.read_exact(&mut buf)?;
 
-        Ok(ProtocolReader(Package::new(packet_id, length, buf)))
+        Ok(ProtocolReader(Package::new(packet_id.0, length, buf)))
     }
 
     fn try_read_var_int(&mut self) -> std::io::Result<VarInt> {

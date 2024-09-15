@@ -48,11 +48,17 @@ impl Connection {
         self.write_packet(out_package)
     }
 
-    pub fn try_recieve_ping(&mut self) -> std::io::Result<()> {
+    pub fn try_ping_pong(&mut self) -> std::io::Result<()> {
         let mut pack = self.input.try_read_package()?;
-        let _ = pack.try_read_long()?;
-        println!("{:?}", pack);
-        Ok(())
+        if pack.0.id != 0x01 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "This is not a ping request",
+            ));
+        }
+        let long = pack.try_read_long()?;
+        let out_pack = Package::from_serializiable(0x01, long)?;
+        self.write_packet(out_pack)
     }
 
     pub fn try_recieve_status_request(&mut self) -> std::io::Result<bool> {

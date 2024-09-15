@@ -44,7 +44,7 @@ impl<A: ToSocketAddrs + std::marker::Send + 'static> Server<A> {
         if s.get_state() == ConnectionState::Status {
             if s.try_recieve_status_request()? {
                 s.try_send_status()?;
-                s.try_recieve_ping()?;
+                s.try_ping_pong()?;
             }
             return Ok(());
         }
