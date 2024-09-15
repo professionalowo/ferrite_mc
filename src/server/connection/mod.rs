@@ -19,7 +19,7 @@ pub struct Connection {
     state: ConnectionState,
 }
 
-impl<'a> Connection {
+impl Connection {
     pub fn new(stream: TcpStream) -> Self {
         Self {
             input: ProtocolReader(stream),
@@ -29,10 +29,6 @@ impl<'a> Connection {
 
     pub(crate) fn get_stream_mut(&mut self) -> &mut TcpStream {
         &mut self.input.0
-    }
-
-    pub(crate) const fn get_stream(&self) -> &TcpStream {
-        &self.input.0
     }
 
     pub const fn get_state(&self) -> ConnectionState {

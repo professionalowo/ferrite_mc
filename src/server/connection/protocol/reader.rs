@@ -15,7 +15,7 @@ impl<R: Read> Read for ProtocolReader<R> {
         self.0.read(buf)
     }
 }
-
+#[allow(unused)]
 pub trait ReadProtocol {
     fn try_read_package(&mut self) -> std::io::Result<ProtocolReader<Package>>;
     fn try_read_var_int(&mut self) -> std::io::Result<VarInt>;
