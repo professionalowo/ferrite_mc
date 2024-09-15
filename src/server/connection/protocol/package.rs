@@ -56,6 +56,20 @@ impl Package {
         })
     }
 
+    pub fn from_serializiable_iter<S, I>(id: i32, data: I) -> std::io::Result<Self>
+    where
+        S: Serialize,
+        I: IntoIterator<Item = S>,
+    {
+        let data = data
+            .into_iter()
+            .flat_map(|s| s.serialize())
+            .flatten()
+            .collect::<Vec<_>>();
+
+        Self::try_new(id, data)
+    }
+
     pub fn from_serializiable<S: Serialize>(id: i32, data: S) -> std::io::Result<Self> {
         Self::try_new(id, data.serialize()?)
     }
