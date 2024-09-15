@@ -1,8 +1,8 @@
-use std::io::{Cursor, Read};
+use std::io::Read;
 
 use super::{
+    package::Package,
     types::{MString, VarInt, VarLong, UUID},
-    Package,
 };
 
 pub const SEGMENT_BITS: u8 = 0x7F;
@@ -39,11 +39,7 @@ impl<R: Read> ReadProtocol for ProtocolReader<R> {
         let mut buf: Vec<u8> = vec![0; bytes_to_read - 1];
         self.read_exact(&mut buf)?;
 
-        Ok(ProtocolReader(Package {
-            length,
-            id: packet_id,
-            data: Cursor::new(buf),
-        }))
+        Ok(ProtocolReader(Package::new(packet_id, length, buf)))
     }
 
     fn try_read_var_int(&mut self) -> std::io::Result<VarInt> {

@@ -1,8 +1,9 @@
 use connection_state::{test_response, ConnectionState};
 use protocol::{
+    package::Package,
     reader::{ProtocolReader, ReadProtocol},
-    types::{serialize::Serialize, MString, VarInt},
-    Package,
+    types::{MString, VarInt},
+    writer::WriteProtocol,
 };
 use std::{
     io::{Read, Write},
@@ -14,27 +15,28 @@ mod protocol;
 
 #[derive(Debug)]
 pub struct Connection {
-    pub inner: ProtocolReader<TcpStream>,
+    pub input: ProtocolReader<TcpStream>,
     state: ConnectionState,
 }
 
-impl Connection {
-    pub const fn new(stream: TcpStream) -> Self {
+impl<'a> Connection {
+    pub fn new(stream: TcpStream) -> Self {
         Self {
-            inner: ProtocolReader(stream),
+            input: ProtocolReader(stream),
             state: ConnectionState::Uninitialized,
         }
     }
 
-    pub const fn get_state(&self) -> ConnectionState {
-        self.state
+    pub(crate) fn get_stream_mut(&mut self) -> &mut TcpStream {
+        &mut self.input.0
     }
 
-    pub fn write_package(&mut self, package: Package) -> std::io::Result<()> {
-        match self.inner.0.write(&package.serialize()?) {
-            Ok(_) => Ok(()),
-            Err(e) => Err(e),
-        }
+    pub(crate) const fn get_stream(&self) -> &TcpStream {
+        &self.input.0
+    }
+
+    pub const fn get_state(&self) -> ConnectionState {
+        self.state
     }
 
     pub fn try_send_status(&mut self) -> std::io::Result<()> {
@@ -46,26 +48,25 @@ impl Connection {
             size: VarInt(status_string.len().try_into().unwrap()),
             value: status_string,
         };
-        let out_bytes = m_string.serialize()?;
-        let out_package = Package::try_new(0x00, out_bytes)?;
-        self.write_package(out_package)
+        let out_package = Package::from_serializiable(0x00, m_string)?;
+        self.write_packet(out_package)
     }
 
     pub fn try_recieve_ping(&mut self) -> std::io::Result<()> {
-        let mut pack = self.inner.try_read_package()?;
-        let long = pack.try_read_long()?;
+        let mut pack = self.input.try_read_package()?;
+        let _ = pack.try_read_long()?;
         println!("{:?}", pack);
         Ok(())
     }
 
     pub fn try_recieve_status_request(&mut self) -> std::io::Result<bool> {
-        let pack = self.inner.try_read_package()?;
+        let pack = self.input.try_read_package()?;
         Ok(pack.0.id == 0 && pack.0.length == 1)
     }
 
     pub fn try_handshake(&mut self) -> std::io::Result<()> {
         self.state = ConnectionState::Handshaking;
-        let mut package = self.inner.try_read_package()?;
+        let mut package: ProtocolReader<_> = self.input.try_read_package()?;
         let protocol_version = package.try_read_var_int()?.0;
         let server_address = package.try_read_string()?.value;
         let server_port = package.try_read_ushort()?;
@@ -80,7 +81,7 @@ impl Connection {
     }
     pub fn try_login(&mut self) -> std::io::Result<()> {
         self.state = ConnectionState::Login;
-        let mut package = self.inner.try_read_package()?;
+        let mut package = self.input.try_read_package()?;
         let name = package.try_read_string()?.value;
         let uuid = package.try_read_uuid()?;
         println!("name: {:?}", name);
@@ -103,17 +104,17 @@ impl Connection {
 //delegate read and write to underlying TcpStream
 impl Read for Connection {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        self.inner.read(buf)
+        self.input.read(buf)
     }
 }
 
 impl Write for Connection {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.inner.0.write(buf)
+        self.input.0.write(buf)
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        self.inner.0.flush()
+        self.input.0.flush()
     }
 }
 
@@ -121,12 +122,12 @@ impl Write for Connection {
 mod tests {
     use std::io::Cursor;
 
-    use crate::server::connection::protocol::reader::{ProtocolReader, ReadProtocol};
-
-    use super::protocol::{
-        types::{serialize::Serialize, MString, VarInt},
-        Package,
+    use crate::server::connection::protocol::{
+        package::Package,
+        reader::{ProtocolReader, ReadProtocol},
     };
+
+    use super::protocol::types::{serialize::Serialize, MString, VarInt};
 
     #[test]
     fn serialization_roundtrip() {
@@ -135,7 +136,7 @@ mod tests {
             value: value.into(),
             size: VarInt(value.len().try_into().unwrap()),
         };
-        let package = Package::try_new(0, mstring.serialize().unwrap()).unwrap();
+        let package = Package::from_serializiable(0, mstring).unwrap();
         let bytes = package.serialize().unwrap();
         let cursor = Cursor::new(bytes);
         let mut reader = ProtocolReader(cursor);

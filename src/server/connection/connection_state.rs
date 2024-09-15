@@ -26,6 +26,7 @@ impl TryFrom<i32> for ConnectionState {
 }
 
 #[derive(Debug, Serialize)]
+#[allow(non_snake_case)]
 pub struct StatusResponse {
     version: Version,
     players: Players,

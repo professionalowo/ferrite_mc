@@ -1,5 +1,4 @@
 use std::{
-    io::Read,
     net::{TcpListener, TcpStream, ToSocketAddrs},
     thread::{self, JoinHandle},
     time::Duration,
